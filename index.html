@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MochaLLM: Studio v2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --bg-main: #0f0b0a; /* Mocha Dark */
+            --bg-panel: #1a1615; 
+            --accent: #d97706; /* Amber 600 (Coffee/Mocha) */
+            --accent-dim: #b45309;
+            --text-main: #f5f5f4;
+            --text-muted: #a8a29e;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+        }
+
+        /* Modern Panel Styling */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid #292524; 
+        }
+
+        .input-field {
+            background: #0f0b0a;
+            border: 1px solid #292524;
+            transition: all 0.2s ease;
+        }
+        .input-field:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #44403c; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #57534e; }
+
+        /* Chat Bubbles */
+        .bubble {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .bubble-user {
+            background-color: var(--accent);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        
+        .bubble-ai {
+            background-color: #292524;
+            color: #f5f5f4;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .typing-dot {
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            background: #a8a29e;
+            border-radius: 50%;
+            margin-right: 2px;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .mono-text { font-family: 'JetBrains Mono', monospace; }
+
+        /* Button Styles */
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+            transition: filter 0.2s;
+        }
+        .btn-primary:hover { filter: brightness(1.1); }
+        .btn-primary:active { transform: scale(0.98); }
+        
+        .btn-secondary {
+            background-color: #292524;
+            color: #e7e5e4;
+            border: 1px solid #44403c;
+            transition: background-color 0.2s;
+        }
+        .btn-secondary:hover { background-color: #44403c; }
+
+        /* Plan Badge */
+        .plan-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+        .plan-regular { background: #44403c; color: #a8a29e; }
+        .plan-pro { background: #0369a1; color: #e0f2fe; }
+        .plan-studio { background: linear-gradient(135deg, #d97706, #b45309); color: white; }
+
+        /* Context Badge in Editor */
+        .keyword-hl { color: #d97706; font-weight: bold; }
+        .context-hl { color: #10b981; font-weight: bold; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden selection:bg-amber-500/30">
+
+    <!-- Header -->
+    <header class="panel h-16 px-6 flex justify-between items-center z-20 border-b border-[#292524]">
+        <div class="flex items-center gap-4">
+            <div class="w-9 h-9 bg-gradient-to-br from-amber-600 to-amber-700 rounded-lg flex items-center justify-center text-white shadow-lg">
+                <i class="fa-solid fa-mug-hot"></i>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold text-white tracking-wide">MochaLLM <span class="opacity-50 font-normal">v2.0</span></h1>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <select id="plan-selector" class="bg-[#0f0b0a] border border-[#292524] text-[10px] text-white rounded px-1 py-0.5 outline-none cursor-pointer hover:border-amber-600 transition-colors">
+                        <option value="regular">Regular Plan</option>
+                        <option value="pro">Pro Plan</option>
+                        <option value="studio" selected>Studio Plan</option>
+                    </select>
+                    <div class="w-1 h-1 rounded-full bg-emerald-500"></div>
+                    <p class="text-[10px] text-stone-500 font-medium" id="status-indicator">Idle</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div class="flex flex-col items-end mr-2">
+                <span class="text-[10px] text-stone-500 font-semibold uppercase tracking-wider mb-1">Temperature</span>
+                <input type="range" id="temperature" min="0.1" max="1.0" step="0.1" value="0.4" class="w-24 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-amber-600">
+            </div>
+            
+            <button id="copy-chat-btn" class="btn-secondary px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2">
+                <i class="fa-regular fa-comment-dots"></i> Copy
+            </button>
+            
+            <button id="export-btn" class="btn-secondary px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-down"></i> Backup
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden relative">
+        
+        <!-- Left Panel: Training -->
+        <section class="w-96 panel border-r-0 border-r border-[#292524] flex flex-col z-10" id="sidebar">
+            <div class="p-4 border-b border-[#292524] flex justify-between items-center bg-[#151210]">
+                <h2 class="text-xs font-bold text-stone-400 uppercase tracking-wide">
+                    Knowledge Base
+                </h2>
+                <div class="flex items-center gap-2">
+                    <span id="save-indicator" class="text-[10px] text-stone-600 opacity-0 transition-opacity"><i class="fa-solid fa-check"></i> Saved</span>
+                    <span id="token-count" class="text-[10px] mono-text text-stone-500 bg-[#1c1917] px-2 py-0.5 rounded border border-[#292524]">0 tokens</span>
+                </div>
+            </div>
+            
+            <div class="flex-1 relative group bg-[#0f0b0a]">
+                <textarea id="training-input" class="w-full h-full bg-transparent text-stone-400 p-4 text-xs mono-text leading-relaxed resize-none focus:outline-none placeholder-stone-700" 
+                placeholder="// Define Context to make AI smarter!&#10;&#10;Context: fruit, food&#10;User: What is an Apple?&#10;AI: A red fruit.&#10;&#10;Context: tech, computer&#10;User: What is an Apple?&#10;AI: A tech company." spellcheck="false"></textarea>
+            </div>
+
+            <div class="p-4 border-t border-[#292524] bg-[#151210]">
+                <button id="train-btn" class="w-full btn-primary font-medium py-2.5 px-4 rounded-lg shadow-sm flex justify-center items-center gap-2 text-sm text-white">
+                    Initialize Core
+                </button>
+                <div class="flex justify-center gap-3 mt-3">
+                    <button onclick="resetToDefault()" class="text-[10px] text-stone-500 hover:text-red-500 transition-colors">Reset to Default</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel: Chat -->
+        <section class="flex-1 flex flex-col relative bg-[#0f0b0a]">
+            
+            <!-- Messages Area -->
+            <div id="chat-container" class="flex-1 p-6 overflow-y-auto flex flex-col gap-3 scroll-smooth">
+                <!-- System Welcome -->
+                <div class="bubble bubble-ai" data-role="system">
+                    <div class="font-semibold text-xs text-amber-500 mb-1">System</div>
+                    <p class="text-stone-300 text-sm">MochaLLM v2.0 Online. Context Engine Active.</p>
+                </div>
+            </div>
+
+            <!-- Smart Viz -->
+            <div id="brain-viz" class="h-0 overflow-hidden bg-[#151210] border-t border-[#292524] transition-all duration-300 flex flex-col">
+                <div class="px-4 py-2 bg-[#1c1917] flex justify-between items-center border-b border-[#292524]">
+                    <span class="text-[10px] text-stone-400 font-medium flex items-center gap-2">
+                        <i class="fa-solid fa-microchip text-amber-500"></i> <span id="viz-status">Processing...</span>
+                    </span>
+                    <span id="viz-match-score" class="text-[10px] mono-text text-stone-500">Score: --%</span>
+                </div>
+                <div class="p-3 flex items-center gap-4 overflow-x-auto">
+                    <div class="flex-1 min-w-[150px]">
+                        <div class="text-[10px] text-stone-500 font-bold mb-1">Active Context</div>
+                        <div id="viz-input-tokens" class="text-xs text-stone-300 mono-text truncate">...</div>
+                    </div>
+                    <i class="fa-solid fa-arrow-right text-stone-600 text-xs"></i>
+                    <div class="flex-1 min-w-[150px]">
+                        <div class="text-[10px] text-amber-600 font-bold mb-1">Retrieval Target</div>
+                        <div id="viz-memory-match" class="text-xs text-amber-200 mono-text truncate opacity-80">Searching...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 border-t border-[#292524] bg-[#151210]">
+                <form id="chat-form" class="relative">
+                    <input type="text" id="user-input" class="w-full input-field text-white rounded-lg pl-4 pr-12 py-3 text-sm placeholder-stone-600" placeholder="Type your query..." disabled autocomplete="off">
+                    <button type="submit" id="send-btn" class="absolute right-2 top-2 bottom-2 w-8 bg-[#292524] hover:bg-amber-600 text-white rounded-md flex items-center justify-center transition-colors disabled:opacity-0 disabled:scale-75">
+                        <i class="fa-solid fa-arrow-up text-xs"></i>
+                    </button>
+                </form>
+            </div>
+
+        </section>
+    </main>
+
+<script>
+/**
+ * MochaLLM: The Caffeine-Powered AI
+ * v2.0 - Contextual Vectors & Metadata Support
+ */
+
+const state = {
+    model: {},        
+    qaMemory: [],     
+    tokens: [],
+    ngram: 3,         
+    isReady: false,
+    contextHistory: [] // Stores recent words to "remember" the topic
+};
+
+const STORAGE_KEY = 'mocha_llm_v2_training_data';
+
+const el = {
+    input: document.getElementById('training-input'),
+    trainBtn: document.getElementById('train-btn'),
+    exportBtn: document.getElementById('export-btn'),
+    copyChatBtn: document.getElementById('copy-chat-btn'),
+    chatContainer: document.getElementById('chat-container'),
+    userInput: document.getElementById('user-input'),
+    chatForm: document.getElementById('chat-form'),
+    sendBtn: document.getElementById('send-btn'),
+    stats: document.getElementById('token-count'),
+    status: document.getElementById('status-indicator'),
+    tempSlider: document.getElementById('temperature'),
+    planSelect: document.getElementById('plan-selector'),
+    brainViz: document.getElementById('brain-viz'),
+    vizStatus: document.getElementById('viz-status'),
+    vizInput: document.getElementById('viz-input-tokens'),
+    vizMatch: document.getElementById('viz-memory-match'),
+    vizScore: document.getElementById('viz-match-score'),
+    saveIndicator: document.getElementById('save-indicator')
+};
+
+// --- 1. Data Management (Storage & Defaults) ---
+
+const defaultData = `// --- BASE IDENTITY ---
+User: Hello.
+AI: Hi there! How can I help you today?
+User: Who are you?
+AI: I am MochaLLM, now upgraded with Context Awareness.
+
+// --- CONTEXT EXAMPLE: "APPLE" ---
+// By adding "Context:", the AI knows which definition to use based on conversation history.
+
+Context: fruit, food, eating, red
+User: What is an apple?
+AI: An apple is a sweet, edible fruit produced by an apple tree.
+
+Context: tech, computer, phone, startup, business
+User: What is an apple?
+AI: Apple Inc. is a multinational technology company headquarters in Cupertino.
+
+// --- GENERAL KNOWLEDGE ---
+User: What is coffee?
+AI: Coffee is a brewed drink prepared from roasted coffee beans.
+User: Meaning of life?
+AI: 42.
+Context: math, school, numbers
+User: What is pi?
+AI: Pi is approximately 3.14159.
+Context: food, bakery
+User: What is pie?
+AI: A baked dish which is usually made of a pastry dough casing.
+`;
+
+function loadData() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        el.input.value = saved;
+        addMessage("System", "Restored knowledge base from local storage.");
+    } else {
+        el.input.value = defaultData;
+    }
+    updateTokenCount();
+}
+
+function resetToDefault() {
+    if(confirm("Are you sure you want to reset training data to default? You will lose unsaved changes.")) {
+        localStorage.removeItem(STORAGE_KEY);
+        el.input.value = defaultData;
+        addMessage("System", "Reset knowledge base to defaults.");
+        updateTokenCount();
+    }
+}
+
+// Auto-save on input
+let saveTimeout;
+el.input.addEventListener('input', () => {
+    updateTokenCount();
+    clearTimeout(saveTimeout);
+    el.saveIndicator.style.opacity = '0';
+    
+    saveTimeout = setTimeout(() => {
+        localStorage.setItem(STORAGE_KEY, el.input.value);
+        el.saveIndicator.style.opacity = '1';
+        setTimeout(() => { el.saveIndicator.style.opacity = '0'; }, 2000);
+    }, 1000); // Debounce save 1s
+});
+
+function updateTokenCount() {
+    const tokens = tokenize(el.input.value);
+    el.stats.textContent = `${tokens.length.toLocaleString()} tokens`;
+}
+
+// --- 2. Advanced Tokenizer & Normalizer ---
+function cleanText(text) {
+    return text
+        .toLowerCase()
+        .replace(/(.)\1{2,}/g, '$1') 
+        .replace(/[^a-z0-9\s]/g, '')
+        .trim();
+}
+
+function tokenize(text) {
+    // Split by non-alphanumeric, allow words > 1 char (so "pi" works)
+    return text.replace(/([.,!?;:])/g, " $1 ").split(/\s+/).filter(t => t.length > 1);
+}
+
+// --- 3. Training Core (Parser) ---
+el.trainBtn.addEventListener('click', () => {
+    const text = el.input.value.trim();
+    if (!text) return;
+    
+    localStorage.setItem(STORAGE_KEY, text);
+
+    el.trainBtn.innerText = 'Brewing...';
+    el.trainBtn.disabled = true;
+    
+    setTimeout(() => {
+        // Reset State
+        state.tokens = tokenize(text);
+        state.model = {};
+        state.qaMemory = [];
+        state.contextHistory = []; 
+        
+        // --- NEW PARSING LOGIC ---
+        const rawLines = text.split(/\n+/);
+        let lastUserLine = null;
+        let activeContext = []; // Stores context tags for the current block
+
+        rawLines.forEach((line) => {
+            const cleanLine = line.trim();
+            
+            // 1. Detect Context Tag
+            if (cleanLine.toLowerCase().startsWith("context:")) {
+                const ctxRaw = cleanLine.substring(8); // remove "Context:"
+                activeContext = tokenize(ctxRaw.toLowerCase());
+                return; // Skip to next line
+            }
+
+            // 2. Detect User Tag
+            if (cleanLine.startsWith("User:")) {
+                lastUserLine = cleanLine.replace("User:", "").trim();
+            } 
+            // 3. Detect AI Tag
+            else if (cleanLine.startsWith("AI:") && lastUserLine) {
+                const answer = cleanLine.replace("AI:", "").trim();
+                
+                state.qaMemory.push({
+                    trigger: lastUserLine,
+                    cleanTrigger: cleanText(lastUserLine), 
+                    keywords: tokenize(lastUserLine.toLowerCase()).filter(w => w.length > 1),
+                    contextTags: activeContext, // Attach the active context to this memory
+                    response: answer,
+                    responseTokens: tokenize(answer) 
+                });
+                
+                // IMPORTANT: We do NOT clear activeContext here immediately.
+                // We assume context applies to the User input that follows it.
+                // However, usually context resets per block. 
+                // For this simple parser, we keep it until a new Context: line appears or we assume clear?
+                // Let's clear it after usage to prevent it bleeding into unrelated topics.
+                activeContext = []; 
+                lastUserLine = null;
+            }
+        });
+
+        // Build N-Gram Map (AI responses only)
+        state.qaMemory.forEach(pair => {
+            const words = pair.responseTokens;
+            for (let i = 0; i < words.length - 1; i++) {
+                const nextWord = words[i + 1];
+                for (let len = 1; len < state.ngram; len++) {
+                    if (i - len + 1 >= 0) {
+                        const chunk = words.slice(i - len + 1, i + 1);
+                        const context = chunk.join(" ").toLowerCase();
+                        if (!state.model[context]) state.model[context] = [];
+                        state.model[context].push(nextWord);
+                    }
+                }
+            }
+        });
+
+        // Finalize
+        state.isReady = true;
+        updateTokenCount();
+        el.status.textContent = "Ready";
+        el.status.className = "text-[10px] text-emerald-400 font-medium";
+        
+        el.trainBtn.innerText = 'Re-Initialize';
+        el.trainBtn.disabled = false;
+        el.userInput.disabled = false;
+        el.userInput.placeholder = `Ask MochaLLM (${el.planSelect.value} mode)...`;
+        el.userInput.focus();
+        
+        addMessage("System", `Core Initialized. ${state.qaMemory.length} pairs loaded with Smart Context.`);
+    }, 100);
+});
+
+// Update placeholder on plan change
+el.planSelect.addEventListener('change', () => {
+    if(!state.isReady) return;
+    el.userInput.placeholder = `Ask MochaLLM (${el.planSelect.value} mode)...`;
+    addMessage("System", `Switched to <strong>${el.planSelect.value.toUpperCase()}</strong> plan.`);
+});
+
+// --- 4. Chat Interaction ---
+el.chatForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!state.isReady) return;
+    const text = el.userInput.value.trim();
+    if (!text) return;
+
+    addMessage("User", text);
+    el.userInput.value = '';
+    generateResponse(text);
+});
+
+// --- 5. Generation Engine (Multi-Plan + Context Awareness) ---
+async function generateResponse(userText) {
+    el.brainViz.style.height = "70px";
+    const plan = el.planSelect.value;
+    
+    // UI Update
+    if (plan === 'regular') el.vizStatus.textContent = "N-Gram Generator";
+    else if (plan === 'pro') el.vizStatus.textContent = "Neural Retrieval";
+    else el.vizStatus.textContent = "Deep Context Search";
+
+    const aiBubble = addMessage("AI", '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>', true);
+    let responseWords = [];
+    
+    // -- STEP 1: TOKENIZE & NORMALIZE --
+    const userClean = cleanText(userText);
+    const userTokens = tokenize(userText.toLowerCase());
+    const userKeywords = userTokens.filter(w => w.length > 1);
+    
+    // -- CONTEXT MANAGEMENT (STUDIO PLAN) --
+    // We add current user words to history to build "Conversation Context"
+    if (plan === 'studio') {
+        state.contextHistory.push(...userKeywords);
+        if (state.contextHistory.length > 20) state.contextHistory = state.contextHistory.slice(-20); 
+        
+        const recentContext = state.contextHistory.slice(-5).join(", ");
+        el.vizInput.innerHTML = `<span class="text-stone-500">History:</span> ${recentContext} <span class="text-white">+ ${userKeywords.join(" ")}</span>`;
+    } else {
+        el.vizInput.textContent = userKeywords.join(", ");
+    }
+    
+    // -- STEP 2: SCORING ALGORITHM --
+    let bestMatch = null;
+    let bestScore = 0;
+    let matchType = "None"; // For debug/viz
+
+    if (plan !== 'regular') {
+        state.qaMemory.forEach(mem => {
+            let matchCount = 0;
+            let contextBoost = 0;
+            
+            // A. Direct Keyword Match (Base Score)
+            userKeywords.forEach(uk => {
+                if (mem.keywords.includes(uk)) matchCount += 1.0;
+            });
+
+            // B. Phrase Match (High Score)
+            if (userClean.includes(mem.cleanTrigger)) {
+                matchCount += 5.0; 
+            }
+            
+            // C. CONTEXT BOOST (The "Smart" Part)
+            // If the memory has defined Context Tags (e.g., "fruit"), check if "fruit" is in history
+            if (mem.contextTags && mem.contextTags.length > 0) {
+                // Check if User's CURRENT input has context tags
+                const currentInputHasContext = mem.contextTags.some(tag => userKeywords.includes(tag));
+                
+                // Check if HISTORY has context tags (Studio Plan only)
+                const historyHasContext = plan === 'studio' 
+                    ? mem.contextTags.some(tag => state.contextHistory.includes(tag))
+                    : false;
+
+                if (currentInputHasContext) {
+                    contextBoost += 5; // Immediate context override
+                } else if (historyHasContext) {
+                    contextBoost += 3; // Historical context resonance
+                }
+            }
+
+            let totalScore = matchCount + contextBoost;
+
+            if (totalScore > bestScore) {
+                bestScore = totalScore;
+                bestMatch = mem;
+                matchType = contextBoost > 0 ? "Context Boost" : "Direct Match";
+            }
+        });
+    }
+
+    // -- STEP 3: DECIDE OUTPUT --
+    let currentContext = [];
+    const threshold = plan === 'regular' ? 999 : 0.5; 
+
+    if (bestMatch && bestScore > threshold) {
+        // MATCH FOUND
+        el.vizMatch.textContent = `"${bestMatch.trigger}"`;
+        
+        // Visual Feedback for Context
+        if (matchType === "Context Boost") {
+             el.vizScore.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-bolt"></i> ${bestScore.toFixed(1)} (Boosted)</span>`;
+        } else {
+             el.vizScore.textContent = `Score: ${bestScore.toFixed(1)}`;
+        }
+        
+        el.vizMatch.className = "text-xs text-emerald-400 mono-text truncate";
+
+        // Pro/Studio: Return the canned response immediately if score is high
+        if (bestScore >= 2 || plan === 'studio') {
+             await new Promise(r => setTimeout(r, 600));
+             aiBubble.textContent = bestMatch.response;
+             el.brainViz.style.height = "0px";
+             return;
+        }
+        
+        const answerTokens = tokenize(bestMatch.response);
+        currentContext = answerTokens.slice(0, Math.min(2, answerTokens.length));
+        responseWords = [...currentContext];
+
+    } else {
+        // NO MATCH -> Fallback to Generator
+        el.vizMatch.textContent = plan === 'regular' ? "Skipped (Regular)" : "No Resonance";
+        el.vizMatch.className = "text-xs text-stone-500 mono-text truncate";
+        el.vizScore.textContent = "Score: 0";
+
+        // Random Seed
+        const aiStarts = Object.keys(state.model).filter(k => !k.includes('.') && !k.includes('?'));
+        if (aiStarts.length > 0) {
+            const seed = aiStarts[Math.floor(Math.random() * aiStarts.length)];
+            currentContext = seed.split(" ");
+        } else {
+            aiBubble.textContent = "I don't have enough data on that context yet.";
+            setTimeout(() => { el.brainViz.style.height = "0px"; }, 1000);
+            return;
+        }
+    }
+
+    // -- STEP 4: N-GRAM GENERATION (Fill in the blanks) --
+    aiBubble.innerHTML = "";
+    if (responseWords.length > 0) {
+        aiBubble.textContent = responseWords.join(" ") + " ";
+    }
+
+    for (let i = 0; i < 25; i++) {
+        await new Promise(r => setTimeout(r, 30 + Math.random() * 40));
+        
+        let candidates = null;
+        let ctxStr = currentContext.join(" ").toLowerCase();
+        
+        if (state.model[ctxStr]) candidates = state.model[ctxStr];
+        else if (currentContext.length > 1) {
+            ctxStr = currentContext.slice(1).join(" ").toLowerCase();
+            if (state.model[ctxStr]) candidates = state.model[ctxStr];
+        }
+
+        if (!candidates) break;
+
+        const nextWord = selectWord(candidates);
+        
+        if (nextWord === "User" || nextWord === "User:" || nextWord === "AI" || nextWord === "AI:" || nextWord === "Context:") break;
+
+        responseWords.push(nextWord);
+        aiBubble.textContent = responseWords.join(" ");
+        
+        currentContext.push(nextWord);
+        if (currentContext.length >= state.ngram) currentContext.shift();
+        
+        el.chatContainer.scrollTop = el.chatContainer.scrollHeight;
+    }
+
+    if (responseWords.length === 0) aiBubble.textContent = "Processing error.";
+    setTimeout(() => { el.brainViz.style.height = "0px"; }, 1000);
+}
+
+function selectWord(candidates) {
+    const temp = parseFloat(el.tempSlider.value);
+    if (Math.random() > temp) {
+        const counts = {};
+        candidates.forEach(x => counts[x] = (counts[x] || 0) + 1);
+        return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    } else {
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+}
+
+// --- Helper: UI ---
+function addMessage(sender, html, isTyping = false) {
+    const div = document.createElement('div');
+    const isUser = sender === "User";
+    div.className = `bubble ${isUser ? 'bubble-user' : 'bubble-ai'}`;
+    
+    if (sender === "System") {
+        div.setAttribute('data-role', 'system');
+        div.innerHTML = `<div class="font-semibold text-[10px] text-amber-500 mb-1">System</div>${html}`;
+    } else if (isUser) {
+        div.textContent = html;
+    } else {
+        div.innerHTML = `<div class="font-semibold text-[10px] text-stone-500 mb-1">MochaLLM</div><span class="msg-content block">${html}</span>`;
+    }
+    
+    el.chatContainer.appendChild(div);
+    el.chatContainer.scrollTop = el.chatContainer.scrollHeight;
+    
+    return isUser ? div : div.querySelector('.msg-content');
+}
+
+// --- Copy Chat ---
+el.copyChatBtn.addEventListener('click', () => {
+    const bubbles = Array.from(document.querySelectorAll('.bubble'))
+        .filter(b => !b.dataset.role)
+        .map(b => {
+            const isUser = b.classList.contains('bubble-user');
+            const text = isUser ? b.innerText : b.querySelector('.msg-content').innerText;
+            return `${isUser ? 'User' : 'AI'}: ${text}`;
+        }).join("\n");
+        
+    if(!bubbles) return alert("No chat history.");
+
+    navigator.clipboard.writeText(bubbles).then(() => {
+        const original = el.copyChatBtn.innerHTML;
+        el.copyChatBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        setTimeout(() => el.copyChatBtn.innerHTML = original, 1000);
+    });
+});
+
+// --- Backup ---
+el.exportBtn.addEventListener('click', () => {
+    const data = el.input.value;
+    const history = Array.from(document.querySelectorAll('.bubble'))
+        .filter(b => !b.dataset.role)
+        .map(b => {
+            const isUser = b.classList.contains('bubble-user');
+            const text = isUser ? b.innerText : b.querySelector('.msg-content').innerText;
+            return `${isUser ? 'User' : 'AI'}: ${text}`;
+        }).join("\n");
+        
+    const full = data + "\n\n" + history;
+    navigator.clipboard.writeText(full).then(() => {
+        const original = el.exportBtn.innerHTML;
+        el.exportBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        setTimeout(() => el.exportBtn.innerHTML = original, 1000);
+    });
+});
+
+// Init
+window.addEventListener('DOMContentLoaded', loadData);
+</script>
+</body>
+</html>
