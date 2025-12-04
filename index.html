@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MochaLLM: Studio v2.0</title>
+    <title>MochaLLM Studio v5.3: Toolbox Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
         :root {
-            --bg-main: #0f0b0a; /* Mocha Dark */
-            --bg-panel: #1a1615; 
-            --accent: #d97706; /* Amber 600 (Coffee/Mocha) */
-            --accent-dim: #b45309;
-            --text-main: #f5f5f4;
-            --text-muted: #a8a29e;
+            --bg-main: #09090b;
+            --bg-panel: #18181b; 
+            --accent: #3b82f6; /* Blue 500 */
+            --accent-dim: #2563eb;
+            --accent-glow: rgba(59, 130, 246, 0.15);
+            --text-main: #fafafa;
+            --border: #27272a;
         }
 
         body {
@@ -24,28 +26,29 @@
             color: var(--text-main);
         }
 
-        /* Modern Panel Styling */
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
         .panel {
             background: var(--bg-panel);
-            border: 1px solid #292524; 
+            border: 1px solid var(--border);
         }
 
         .input-field {
-            background: #0f0b0a;
-            border: 1px solid #292524;
+            background: #09090b;
+            border: 1px solid var(--border);
             transition: all 0.2s ease;
         }
         .input-field:focus {
             border-color: var(--accent);
             outline: none;
-            box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+            box-shadow: 0 0 0 2px var(--accent-glow);
         }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #44403c; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #57534e; }
+        .mono-text { font-family: 'JetBrains Mono', monospace; }
 
         /* Chat Bubbles */
         .bubble {
@@ -54,22 +57,33 @@
             border-radius: 12px;
             font-size: 0.95rem;
             line-height: 1.6;
-            position: relative;
             animation: fadeIn 0.3s ease-out;
+            position: relative;
         }
         
         .bubble-user {
-            background-color: var(--accent);
+            background-color: #27272a;
             color: white;
             align-self: flex-end;
             border-bottom-right-radius: 2px;
         }
         
         .bubble-ai {
-            background-color: #292524;
-            color: #f5f5f4;
+            background: linear-gradient(135deg, #1e3a8a, #172554);
+            color: #dbeafe;
             align-self: flex-start;
             border-bottom-left-radius: 2px;
+            border: 1px solid #1e40af;
+        }
+
+        .bubble-system {
+            background: transparent;
+            border: 1px dashed #3f3f46;
+            color: #71717a;
+            font-size: 0.8rem;
+            align-self: center;
+            width: 100%;
+            text-align: center;
         }
 
         @keyframes fadeIn {
@@ -81,7 +95,7 @@
             display: inline-block;
             width: 5px;
             height: 5px;
-            background: #a8a29e;
+            background: #60a5fa;
             border-radius: 50%;
             margin-right: 2px;
             animation: bounce 1.4s infinite ease-in-out both;
@@ -94,623 +108,701 @@
             40% { transform: scale(1); }
         }
 
-        .mono-text { font-family: 'JetBrains Mono', monospace; }
+        #training-overlay, #import-overlay { backdrop-filter: blur(8px); background: rgba(9, 9, 11, 0.9); }
 
-        /* Button Styles */
-        .btn-primary {
-            background-color: var(--accent);
-            color: white;
-            transition: filter 0.2s;
-        }
-        .btn-primary:hover { filter: brightness(1.1); }
-        .btn-primary:active { transform: scale(0.98); }
-        
-        .btn-secondary {
-            background-color: #292524;
-            color: #e7e5e4;
-            border: 1px solid #44403c;
-            transition: background-color 0.2s;
-        }
-        .btn-secondary:hover { background-color: #44403c; }
-
-        /* Plan Badge */
-        .plan-badge {
-            font-size: 10px;
-            padding: 2px 6px;
+        /* Token Visualization */
+        .token-chip {
+            display: inline-block;
+            padding: 2px 5px;
+            margin: 1px;
             border-radius: 4px;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.05em;
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            color: #d4d4d8;
         }
-        .plan-regular { background: #44403c; color: #a8a29e; }
-        .plan-pro { background: #0369a1; color: #e0f2fe; }
-        .plan-studio { background: linear-gradient(135deg, #d97706, #b45309); color: white; }
+        .token-chip.match { border-color: #3b82f6; color: #93c5fd; background: rgba(59, 130, 246, 0.1); }
+        .token-chip.gen { border-color: #a855f7; color: #e9d5ff; }
 
-        /* Context Badge in Editor */
-        .keyword-hl { color: #d97706; font-weight: bold; }
-        .context-hl { color: #10b981; font-weight: bold; }
+        /* Sliders */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; margin-top: -5px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: #3f3f46; border-radius: 2px;
+        }
+
+        .btn-primary {
+            background: var(--accent); color: white; transition: all 0.2s;
+        }
+        .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0px); }
+
+        .btn-secondary {
+            background: #27272a; color: #a1a1aa; transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: #3f3f46; color: white; }
+        
+        .badge {
+            font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase;
+        }
+        .badge-vec { background: #172554; color: #60a5fa; border: 1px solid #1e40af; }
+        .badge-gen { background: #3b0764; color: #c084fc; border: 1px solid #6b21a8; }
+        .badge-fail { background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; }
+        .badge-tool { background: #ca8a04; color: #fef08a; border: 1px solid #a16207; }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden selection:bg-amber-500/30">
+<body class="h-screen flex flex-col overflow-hidden selection:bg-blue-500/30">
 
     <!-- Header -->
-    <header class="panel h-16 px-6 flex justify-between items-center z-20 border-b border-[#292524]">
-        <div class="flex items-center gap-4">
-            <div class="w-9 h-9 bg-gradient-to-br from-amber-600 to-amber-700 rounded-lg flex items-center justify-center text-white shadow-lg">
-                <i class="fa-solid fa-mug-hot"></i>
+    <header class="panel h-14 px-4 flex justify-between items-center z-20 border-b-0 border-[#27272a]">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
+                <i class="fa-solid fa-toolbox"></i>
             </div>
             <div>
-                <h1 class="text-sm font-bold text-white tracking-wide">MochaLLM <span class="opacity-50 font-normal">v2.0</span></h1>
-                <div class="flex items-center gap-2 mt-0.5">
-                    <select id="plan-selector" class="bg-[#0f0b0a] border border-[#292524] text-[10px] text-white rounded px-1 py-0.5 outline-none cursor-pointer hover:border-amber-600 transition-colors">
-                        <option value="regular">Regular Plan</option>
-                        <option value="pro">Pro Plan</option>
-                        <option value="studio" selected>Studio Plan</option>
-                    </select>
-                    <div class="w-1 h-1 rounded-full bg-emerald-500"></div>
-                    <p class="text-[10px] text-stone-500 font-medium" id="status-indicator">Idle</p>
-                </div>
+                <h1 class="text-sm font-bold tracking-wide">MochaLLM <span class="text-blue-400">v5.3</span></h1>
+                <p class="text-[10px] text-zinc-500 font-mono">Toolbox Edition</p>
             </div>
         </div>
 
-        <div class="flex items-center gap-4">
-            <div class="flex flex-col items-end mr-2">
-                <span class="text-[10px] text-stone-500 font-semibold uppercase tracking-wider mb-1">Temperature</span>
-                <input type="range" id="temperature" min="0.1" max="1.0" step="0.1" value="0.4" class="w-24 h-1 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-amber-600">
-            </div>
-            
-            <button id="copy-chat-btn" class="btn-secondary px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2">
-                <i class="fa-regular fa-comment-dots"></i> Copy
+        <div class="flex items-center gap-3">
+            <button id="copy-btn" class="btn-secondary px-3 py-1.5 rounded-md text-[10px] font-medium flex items-center gap-2 border border-[#3f3f46]">
+                <i class="fa-regular fa-copy"></i> Copy
             </button>
+
+            <div class="h-6 w-px bg-zinc-800 mx-1"></div>
+
+             <div class="flex flex-col items-end">
+                <div class="flex justify-between w-24 mb-1">
+                    <span class="text-[9px] text-zinc-400 uppercase font-bold">Temperature</span>
+                    <span id="temp-val" class="text-[9px] text-blue-400 font-mono">0.5</span>
+                </div>
+                <input type="range" id="temperature" min="0.1" max="1.2" step="0.1" value="0.5" class="w-24">
+            </div>
+
+            <div class="h-6 w-px bg-zinc-800 mx-1"></div>
             
-            <button id="export-btn" class="btn-secondary px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2">
-                <i class="fa-solid fa-cloud-arrow-down"></i> Backup
+            <button id="reset-btn" class="text-xs text-zinc-500 hover:text-red-400 transition-colors flex items-center gap-1" title="Reset Data">
+                <i class="fa-solid fa-power-off"></i>
             </button>
         </div>
     </header>
 
     <main class="flex-1 flex overflow-hidden relative">
         
-        <!-- Left Panel: Training -->
-        <section class="w-96 panel border-r-0 border-r border-[#292524] flex flex-col z-10" id="sidebar">
-            <div class="p-4 border-b border-[#292524] flex justify-between items-center bg-[#151210]">
-                <h2 class="text-xs font-bold text-stone-400 uppercase tracking-wide">
-                    Knowledge Base
-                </h2>
-                <div class="flex items-center gap-2">
-                    <span id="save-indicator" class="text-[10px] text-stone-600 opacity-0 transition-opacity"><i class="fa-solid fa-check"></i> Saved</span>
-                    <span id="token-count" class="text-[10px] mono-text text-stone-500 bg-[#1c1917] px-2 py-0.5 rounded border border-[#292524]">0 tokens</span>
-                </div>
-            </div>
+        <!-- Left Panel: Training Configuration -->
+        <section class="w-[450px] panel border-r border-[#27272a] flex flex-col z-10 flex-shrink-0">
             
-            <div class="flex-1 relative group bg-[#0f0b0a]">
-                <textarea id="training-input" class="w-full h-full bg-transparent text-stone-400 p-4 text-xs mono-text leading-relaxed resize-none focus:outline-none placeholder-stone-700" 
-                placeholder="// Define Context to make AI smarter!&#10;&#10;Context: fruit, food&#10;User: What is an Apple?&#10;AI: A red fruit.&#10;&#10;Context: tech, computer&#10;User: What is an Apple?&#10;AI: A tech company." spellcheck="false"></textarea>
+            <div class="p-4 border-b border-[#27272a] bg-[#101012]">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                        <i class="fa-solid fa-microchip"></i> System Instruction
+                    </h2>
+                    <span class="text-[9px] text-zinc-600">Base behavior</span>
+                </div>
+                <textarea id="system-prompt" class="w-full h-12 input-field rounded-md p-2 text-xs text-emerald-100/90 font-sans resize-none placeholder-zinc-700 focus:border-emerald-500/50" placeholder="You are a helpful AI assistant..."></textarea>
             </div>
 
-            <div class="p-4 border-t border-[#292524] bg-[#151210]">
-                <button id="train-btn" class="w-full btn-primary font-medium py-2.5 px-4 rounded-lg shadow-sm flex justify-center items-center gap-2 text-sm text-white">
-                    Initialize Core
-                </button>
-                <div class="flex justify-center gap-3 mt-3">
-                    <button onclick="resetToDefault()" class="text-[10px] text-stone-500 hover:text-red-500 transition-colors">Reset to Default</button>
+            <div class="flex-1 flex flex-col bg-[#09090b] min-h-0">
+                <div class="px-4 py-2 bg-[#121214] border-b border-[#27272a] flex justify-between items-center">
+                    <h2 class="text-[10px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                        <i class="fa-solid fa-database"></i> Training Dataset
+                    </h2>
+                    <div class="flex items-center gap-2">
+                        <button id="import-btn" class="text-[9px] text-blue-300 hover:text-white bg-blue-900/30 px-2 py-0.5 rounded border border-blue-900 transition-colors">
+                            <i class="fa-solid fa-file-import"></i> Import Text
+                        </button>
+                        <div id="dataset-stats" class="text-[9px] mono-text text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
+                            0 Pairs
+                        </div>
+                    </div>
                 </div>
+                
+                <div class="flex-1 relative group">
+                    <textarea id="training-data" class="w-full h-full bg-transparent text-zinc-300 p-4 text-xs mono-text leading-relaxed resize-none focus:outline-none placeholder-zinc-700" 
+                    placeholder="// Add Q&A Pairs. No limit.&#10;&#10;User: Hello&#10;AI: Hi there!&#10;&#10;User: 2+2?&#10;AI: 4" spellcheck="false"></textarea>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-[#27272a] bg-[#121214]">
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="block text-[9px] text-zinc-500 uppercase font-bold mb-1">Vector Epochs</label>
+                        <input type="number" id="param-epochs" value="100" min="10" max="1000" class="w-full bg-[#09090b] border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] text-zinc-500 uppercase font-bold mb-1">Repetition Penalty</label>
+                        <select id="param-penalty" class="w-full bg-[#09090b] border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:border-blue-500 outline-none">
+                            <option value="1.0">None (1.0)</option>
+                            <option value="1.2">Low (1.2)</option>
+                            <option value="1.5" selected>High (1.5)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="train-btn" class="w-full btn-primary font-bold py-3 px-4 rounded-lg shadow-lg shadow-blue-900/20 flex justify-center items-center gap-2 text-xs uppercase tracking-wide">
+                    <i class="fa-solid fa-bolt"></i> Vectorize & Train
+                </button>
             </div>
         </section>
 
-        <!-- Right Panel: Chat -->
-        <section class="flex-1 flex flex-col relative bg-[#0f0b0a]">
+        <!-- Right Panel: Inference/Chat -->
+        <section class="flex-1 flex flex-col relative bg-[#09090b]">
             
-            <!-- Messages Area -->
-            <div id="chat-container" class="flex-1 p-6 overflow-y-auto flex flex-col gap-3 scroll-smooth">
-                <!-- System Welcome -->
-                <div class="bubble bubble-ai" data-role="system">
-                    <div class="font-semibold text-xs text-amber-500 mb-1">System</div>
-                    <p class="text-stone-300 text-sm">MochaLLM v2.0 Online. Context Engine Active.</p>
+            <div id="chat-container" class="flex-1 p-6 overflow-y-auto flex flex-col gap-4 scroll-smooth">
+                <div id="welcome-msg" class="h-full flex flex-col items-center justify-center text-zinc-600 opacity-40 select-none">
+                    <i class="fa-solid fa-toolbox text-4xl mb-4"></i>
+                    <p class="text-sm font-medium">System Online</p>
+                    <p class="text-xs">Paste data and click "Vectorize & Train"</p>
                 </div>
             </div>
 
-            <!-- Smart Viz -->
-            <div id="brain-viz" class="h-0 overflow-hidden bg-[#151210] border-t border-[#292524] transition-all duration-300 flex flex-col">
-                <div class="px-4 py-2 bg-[#1c1917] flex justify-between items-center border-b border-[#292524]">
-                    <span class="text-[10px] text-stone-400 font-medium flex items-center gap-2">
-                        <i class="fa-solid fa-microchip text-amber-500"></i> <span id="viz-status">Processing...</span>
+            <!-- Inference Viz -->
+            <div id="viz-bar" class="h-0 overflow-hidden bg-[#121214] border-t border-[#27272a] transition-all duration-300 flex flex-col">
+                <div class="px-4 py-2 border-b border-[#27272a] flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                        <i class="fa-solid fa-microscope"></i> Logic Trace
                     </span>
-                    <span id="viz-match-score" class="text-[10px] mono-text text-stone-500">Score: --%</span>
+                    <span id="confidence-score" class="text-[9px] mono-text text-zinc-500">Waiting...</span>
                 </div>
-                <div class="p-3 flex items-center gap-4 overflow-x-auto">
-                    <div class="flex-1 min-w-[150px]">
-                        <div class="text-[10px] text-stone-500 font-bold mb-1">Active Context</div>
-                        <div id="viz-input-tokens" class="text-xs text-stone-300 mono-text truncate">...</div>
-                    </div>
-                    <i class="fa-solid fa-arrow-right text-stone-600 text-xs"></i>
-                    <div class="flex-1 min-w-[150px]">
-                        <div class="text-[10px] text-amber-600 font-bold mb-1">Retrieval Target</div>
-                        <div id="viz-memory-match" class="text-xs text-amber-200 mono-text truncate opacity-80">Searching...</div>
-                    </div>
-                </div>
+                <div class="p-2 overflow-x-auto whitespace-nowrap flex items-center gap-2" id="token-viz-container"></div>
             </div>
 
-            <!-- Input Area -->
-            <div class="p-4 border-t border-[#292524] bg-[#151210]">
+            <!-- Input -->
+            <div class="p-4 bg-[#09090b] border-t border-[#27272a]">
                 <form id="chat-form" class="relative">
-                    <input type="text" id="user-input" class="w-full input-field text-white rounded-lg pl-4 pr-12 py-3 text-sm placeholder-stone-600" placeholder="Type your query..." disabled autocomplete="off">
-                    <button type="submit" id="send-btn" class="absolute right-2 top-2 bottom-2 w-8 bg-[#292524] hover:bg-amber-600 text-white rounded-md flex items-center justify-center transition-colors disabled:opacity-0 disabled:scale-75">
-                        <i class="fa-solid fa-arrow-up text-xs"></i>
+                    <input type="text" id="user-input" class="w-full input-field text-white rounded-lg pl-4 pr-12 py-3.5 text-sm placeholder-zinc-600 font-light" placeholder="Initializing..." disabled autocomplete="off">
+                    <button type="submit" id="send-btn" class="absolute right-2 top-2 bottom-2 w-9 bg-[#27272a] hover:bg-blue-600 text-zinc-400 hover:text-white rounded-md flex items-center justify-center transition-all disabled:opacity-0 disabled:scale-75">
+                        <i class="fa-solid fa-paper-plane text-xs"></i>
                     </button>
                 </form>
             </div>
-
         </section>
+
+        <!-- Training Modal -->
+        <div id="training-overlay" class="absolute inset-0 z-50 flex items-center justify-center hidden flex-col">
+            <div class="bg-[#18181b] border border-[#27272a] p-1 rounded-xl shadow-2xl w-[400px] max-w-[90%]">
+                <div class="p-5">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                            Building Vector Index
+                        </h3>
+                        <span id="epoch-counter" class="text-xs font-mono text-zinc-400">0%</span>
+                    </div>
+
+                    <div class="h-32 w-full mb-4 bg-[#09090b] rounded-lg border border-[#27272a] relative overflow-hidden">
+                        <canvas id="lossChart"></canvas>
+                    </div>
+
+                    <div class="w-full bg-[#27272a] h-1.5 rounded-full overflow-hidden mb-2">
+                        <div id="train-progress" class="bg-blue-500 h-full w-0 transition-all duration-75"></div>
+                    </div>
+                </div>
+                
+                <div class="bg-[#09090b] border-t border-[#27272a] p-3 rounded-b-xl h-24 overflow-y-auto font-mono text-[9px] text-zinc-500 space-y-1" id="train-log"></div>
+            </div>
+            <button id="stop-train-btn" class="mt-4 px-4 py-2 bg-red-900/50 text-red-200 border border-red-800 rounded-lg text-xs hover:bg-red-900 transition-colors">Abort</button>
+        </div>
+
+        <!-- Import Modal -->
+        <div id="import-overlay" class="absolute inset-0 z-50 flex items-center justify-center hidden flex-col">
+            <div class="bg-[#18181b] border border-[#27272a] p-1 rounded-xl shadow-2xl w-[500px] max-w-[90%]">
+                <div class="p-5">
+                    <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-file-import text-blue-500"></i> Read & Chunk (Text Import)
+                    </h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[9px] text-zinc-500 uppercase font-bold mb-1">Topic Name</label>
+                            <input type="text" id="import-topic" class="w-full input-field rounded px-3 py-2 text-xs text-white" placeholder="e.g., The Moon">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-zinc-500 uppercase font-bold mb-1">Source Text</label>
+                            <textarea id="import-source" class="w-full h-40 input-field rounded px-3 py-2 text-xs text-zinc-300 resize-none" placeholder="Paste a long article, essay, or wiki page here..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-[#09090b] border-t border-[#27272a] p-3 rounded-b-xl flex justify-end gap-2">
+                    <button id="cancel-import" class="px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                    <button id="process-import" class="btn-primary px-3 py-1.5 rounded-md text-xs font-bold">Process & Add</button>
+                </div>
+            </div>
+        </div>
+
     </main>
 
 <script>
 /**
- * MochaLLM: The Caffeine-Powered AI
- * v2.0 - Contextual Vectors & Metadata Support
+ * MochaLLM Studio v5.3 - Toolbox Edition
+ * Integrated 4 additional APIs for enhanced intelligence
  */
 
-const state = {
-    model: {},        
-    qaMemory: [],     
-    tokens: [],
-    ngram: 3,         
-    isReady: false,
-    contextHistory: [] // Stores recent words to "remember" the topic
+const CONFIG = {
+    storageKey: 'mocha_llm_v5_data',
+    systemKey: 'mocha_llm_v5_system'
 };
 
-const STORAGE_KEY = 'mocha_llm_v2_training_data';
-
-const el = {
-    input: document.getElementById('training-input'),
-    trainBtn: document.getElementById('train-btn'),
-    exportBtn: document.getElementById('export-btn'),
-    copyChatBtn: document.getElementById('copy-chat-btn'),
-    chatContainer: document.getElementById('chat-container'),
-    userInput: document.getElementById('user-input'),
-    chatForm: document.getElementById('chat-form'),
-    sendBtn: document.getElementById('send-btn'),
-    stats: document.getElementById('token-count'),
-    status: document.getElementById('status-indicator'),
-    tempSlider: document.getElementById('temperature'),
-    planSelect: document.getElementById('plan-selector'),
-    brainViz: document.getElementById('brain-viz'),
-    vizStatus: document.getElementById('viz-status'),
-    vizInput: document.getElementById('viz-input-tokens'),
-    vizMatch: document.getElementById('viz-memory-match'),
-    vizScore: document.getElementById('viz-match-score'),
-    saveIndicator: document.getElementById('save-indicator')
+const STATE = {
+    isTraining: false,
+    isModelReady: false,
+    vectors: [],
+    vocab: {},
+    idf: {},
+    synonyms: {  // Base synonyms
+        "hi": "hello", "hey": "hello", "make": "cook", "prepare": "cook",
+        "auto": "car", "ai": "bot", "who": "identity"
+    }
 };
 
-// --- 1. Data Management (Storage & Defaults) ---
-
-const defaultData = `// --- BASE IDENTITY ---
-User: Hello.
-AI: Hi there! How can I help you today?
-User: Who are you?
-AI: I am MochaLLM, now upgraded with Context Awareness.
-
-// --- CONTEXT EXAMPLE: "APPLE" ---
-// By adding "Context:", the AI knows which definition to use based on conversation history.
-
-Context: fruit, food, eating, red
-User: What is an apple?
-AI: An apple is a sweet, edible fruit produced by an apple tree.
-
-Context: tech, computer, phone, startup, business
-User: What is an apple?
-AI: Apple Inc. is a multinational technology company headquarters in Cupertino.
-
-// --- GENERAL KNOWLEDGE ---
-User: What is coffee?
-AI: Coffee is a brewed drink prepared from roasted coffee beans.
-User: Meaning of life?
-AI: 42.
-Context: math, school, numbers
-User: What is pi?
-AI: Pi is approximately 3.14159.
-Context: food, bakery
-User: What is pie?
-AI: A baked dish which is usually made of a pastry dough casing.
-`;
-
-function loadData() {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-        el.input.value = saved;
-        addMessage("System", "Restored knowledge base from local storage.");
-    } else {
-        el.input.value = defaultData;
+// --- 1. Expanded ToolBelt ---
+class ToolBelt {
+    static async checkMath(input) {
+        if (/^[\d\s+\-*/^().]+$/.test(input) || input.toLowerCase().startsWith("calculate")) {
+            const expr = input.toLowerCase().replace("calculate", "").trim();
+            try {
+                const res = await fetch(`https://api.mathjs.org/v4/?expr=${encodeURIComponent(expr)}`);
+                const answer = await res.text();
+                return `The result is ${answer}.`;
+            } catch (e) { return null; }
+        }
+        return null;
     }
-    updateTokenCount();
-}
 
-function resetToDefault() {
-    if(confirm("Are you sure you want to reset training data to default? You will lose unsaved changes.")) {
-        localStorage.removeItem(STORAGE_KEY);
-        el.input.value = defaultData;
-        addMessage("System", "Reset knowledge base to defaults.");
-        updateTokenCount();
+    static async checkTime(input) {
+        if (input.toLowerCase().includes("time in")) {
+            const city = input.split("time in")[1].trim();
+            if(city.includes("/")) {
+                try {
+                    const res = await fetch(`http://worldtimeapi.org/api/timezone/${city}`);
+                    const data = await res.json();
+                    if(data.datetime) return `Current time in ${city} is ${new Date(data.datetime).toLocaleTimeString()}.`;
+                } catch(e) {}
+            }
+            return "Please use Area/City format (e.g., 'time in Europe/London').";
+        }
+        return null;
     }
-}
 
-// Auto-save on input
-let saveTimeout;
-el.input.addEventListener('input', () => {
-    updateTokenCount();
-    clearTimeout(saveTimeout);
-    el.saveIndicator.style.opacity = '0';
-    
-    saveTimeout = setTimeout(() => {
-        localStorage.setItem(STORAGE_KEY, el.input.value);
-        el.saveIndicator.style.opacity = '1';
-        setTimeout(() => { el.saveIndicator.style.opacity = '0'; }, 2000);
-    }, 1000); // Debounce save 1s
-});
-
-function updateTokenCount() {
-    const tokens = tokenize(el.input.value);
-    el.stats.textContent = `${tokens.length.toLocaleString()} tokens`;
-}
-
-// --- 2. Advanced Tokenizer & Normalizer ---
-function cleanText(text) {
-    return text
-        .toLowerCase()
-        .replace(/(.)\1{2,}/g, '$1') 
-        .replace(/[^a-z0-9\s]/g, '')
-        .trim();
-}
-
-function tokenize(text) {
-    // Split by non-alphanumeric, allow words > 1 char (so "pi" works)
-    return text.replace(/([.,!?;:])/g, " $1 ").split(/\s+/).filter(t => t.length > 1);
-}
-
-// --- 3. Training Core (Parser) ---
-el.trainBtn.addEventListener('click', () => {
-    const text = el.input.value.trim();
-    if (!text) return;
-    
-    localStorage.setItem(STORAGE_KEY, text);
-
-    el.trainBtn.innerText = 'Brewing...';
-    el.trainBtn.disabled = true;
-    
-    setTimeout(() => {
-        // Reset State
-        state.tokens = tokenize(text);
-        state.model = {};
-        state.qaMemory = [];
-        state.contextHistory = []; 
-        
-        // --- NEW PARSING LOGIC ---
-        const rawLines = text.split(/\n+/);
-        let lastUserLine = null;
-        let activeContext = []; // Stores context tags for the current block
-
-        rawLines.forEach((line) => {
-            const cleanLine = line.trim();
-            
-            // 1. Detect Context Tag
-            if (cleanLine.toLowerCase().startsWith("context:")) {
-                const ctxRaw = cleanLine.substring(8); // remove "Context:"
-                activeContext = tokenize(ctxRaw.toLowerCase());
-                return; // Skip to next line
-            }
-
-            // 2. Detect User Tag
-            if (cleanLine.startsWith("User:")) {
-                lastUserLine = cleanLine.replace("User:", "").trim();
-            } 
-            // 3. Detect AI Tag
-            else if (cleanLine.startsWith("AI:") && lastUserLine) {
-                const answer = cleanLine.replace("AI:", "").trim();
-                
-                state.qaMemory.push({
-                    trigger: lastUserLine,
-                    cleanTrigger: cleanText(lastUserLine), 
-                    keywords: tokenize(lastUserLine.toLowerCase()).filter(w => w.length > 1),
-                    contextTags: activeContext, // Attach the active context to this memory
-                    response: answer,
-                    responseTokens: tokenize(answer) 
-                });
-                
-                // IMPORTANT: We do NOT clear activeContext here immediately.
-                // We assume context applies to the User input that follows it.
-                // However, usually context resets per block. 
-                // For this simple parser, we keep it until a new Context: line appears or we assume clear?
-                // Let's clear it after usage to prevent it bleeding into unrelated topics.
-                activeContext = []; 
-                lastUserLine = null;
-            }
-        });
-
-        // Build N-Gram Map (AI responses only)
-        state.qaMemory.forEach(pair => {
-            const words = pair.responseTokens;
-            for (let i = 0; i < words.length - 1; i++) {
-                const nextWord = words[i + 1];
-                for (let len = 1; len < state.ngram; len++) {
-                    if (i - len + 1 >= 0) {
-                        const chunk = words.slice(i - len + 1, i + 1);
-                        const context = chunk.join(" ").toLowerCase();
-                        if (!state.model[context]) state.model[context] = [];
-                        state.model[context].push(nextWord);
-                    }
+    // New: Dictionary
+    static async checkDefinition(input) {
+        if (input.toLowerCase().startsWith("define ") || input.toLowerCase().includes("meaning of ")) {
+            const word = input.split(" ").pop().replace(/[^a-zA-Z]/g, ""); 
+            try {
+                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+                const data = await res.json();
+                if (Array.isArray(data) && data[0].meanings[0]) {
+                    const def = data[0].meanings[0].definitions[0].definition;
+                    return `Definition of ${word}: ${def}`;
                 }
-            }
-        });
-
-        // Finalize
-        state.isReady = true;
-        updateTokenCount();
-        el.status.textContent = "Ready";
-        el.status.className = "text-[10px] text-emerald-400 font-medium";
-        
-        el.trainBtn.innerText = 'Re-Initialize';
-        el.trainBtn.disabled = false;
-        el.userInput.disabled = false;
-        el.userInput.placeholder = `Ask MochaLLM (${el.planSelect.value} mode)...`;
-        el.userInput.focus();
-        
-        addMessage("System", `Core Initialized. ${state.qaMemory.length} pairs loaded with Smart Context.`);
-    }, 100);
-});
-
-// Update placeholder on plan change
-el.planSelect.addEventListener('change', () => {
-    if(!state.isReady) return;
-    el.userInput.placeholder = `Ask MochaLLM (${el.planSelect.value} mode)...`;
-    addMessage("System", `Switched to <strong>${el.planSelect.value.toUpperCase()}</strong> plan.`);
-});
-
-// --- 4. Chat Interaction ---
-el.chatForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (!state.isReady) return;
-    const text = el.userInput.value.trim();
-    if (!text) return;
-
-    addMessage("User", text);
-    el.userInput.value = '';
-    generateResponse(text);
-});
-
-// --- 5. Generation Engine (Multi-Plan + Context Awareness) ---
-async function generateResponse(userText) {
-    el.brainViz.style.height = "70px";
-    const plan = el.planSelect.value;
-    
-    // UI Update
-    if (plan === 'regular') el.vizStatus.textContent = "N-Gram Generator";
-    else if (plan === 'pro') el.vizStatus.textContent = "Neural Retrieval";
-    else el.vizStatus.textContent = "Deep Context Search";
-
-    const aiBubble = addMessage("AI", '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>', true);
-    let responseWords = [];
-    
-    // -- STEP 1: TOKENIZE & NORMALIZE --
-    const userClean = cleanText(userText);
-    const userTokens = tokenize(userText.toLowerCase());
-    const userKeywords = userTokens.filter(w => w.length > 1);
-    
-    // -- CONTEXT MANAGEMENT (STUDIO PLAN) --
-    // We add current user words to history to build "Conversation Context"
-    if (plan === 'studio') {
-        state.contextHistory.push(...userKeywords);
-        if (state.contextHistory.length > 20) state.contextHistory = state.contextHistory.slice(-20); 
-        
-        const recentContext = state.contextHistory.slice(-5).join(", ");
-        el.vizInput.innerHTML = `<span class="text-stone-500">History:</span> ${recentContext} <span class="text-white">+ ${userKeywords.join(" ")}</span>`;
-    } else {
-        el.vizInput.textContent = userKeywords.join(", ");
+            } catch (e) { return null; }
+        }
+        return null;
     }
-    
-    // -- STEP 2: SCORING ALGORITHM --
-    let bestMatch = null;
-    let bestScore = 0;
-    let matchType = "None"; // For debug/viz
 
-    if (plan !== 'regular') {
-        state.qaMemory.forEach(mem => {
-            let matchCount = 0;
-            let contextBoost = 0;
-            
-            // A. Direct Keyword Match (Base Score)
-            userKeywords.forEach(uk => {
-                if (mem.keywords.includes(uk)) matchCount += 1.0;
+    // New: Country Data
+    static async checkCountry(input) {
+        const capMatch = input.match(/capital of (.+)/i);
+        const popMatch = input.match(/population of (.+)/i);
+        
+        if (capMatch || popMatch) {
+            const country = (capMatch || popMatch)[1].replace("?", "").trim();
+            try {
+                const res = await fetch(`https://restcountries.com/v3.1/name/${country}`); 
+                const data = await res.json();
+                if (Array.isArray(data) && data[0]) {
+                    const info = data[0];
+                    if (capMatch) return `The capital of ${info.name.common} is ${info.capital ? info.capital[0] : "N/A"}.`;
+                    if (popMatch) return `The population of ${info.name.common} is ${info.population.toLocaleString()}.`;
+                }
+            } catch (e) { return null; }
+        }
+        return null;
+    }
+
+    // New: Currency
+    static async checkCurrency(input) {
+        const match = input.match(/convert (\d+) (\w{3}) to (\w{3})/i);
+        if (match) {
+            const amount = parseFloat(match[1]);
+            const from = match[2].toUpperCase();
+            const to = match[3].toUpperCase();
+            try {
+                const res = await fetch(`https://open.er-api.com/v6/latest/${from}`);
+                const data = await res.json();
+                if (data.rates && data.rates[to]) {
+                    return `${amount} ${from} is approximately ${(amount * data.rates[to]).toFixed(2)} ${to}.`;
+                }
+            } catch (e) { return null; }
+        }
+        return null;
+    }
+
+    // New: Jokes
+    static async getJoke(input) {
+        if (input.toLowerCase().includes("tell me a joke")) {
+            try {
+                const res = await fetch('https://v2.jokeapi.dev/joke/Programming,Pun?blacklistFlags=nsfw,religious,political,racist,sexist&type=single');
+                const data = await res.json();
+                if (data.joke) return data.joke;
+            } catch (e) { return null; }
+        }
+        return null;
+    }
+
+    static async getWikipedia(query) {
+        try {
+            let q = query.replace(/^(who|what|where) (is|was|are|were)/i, "").replace(/^tell me about/i, "").replace(/[?]/g, "").trim();
+            const url = `https://en.wikipedia.org/w/api.php?origin=*&action=query&format=json&prop=extracts&exintro&explaintext&redirects=1&titles=${encodeURIComponent(q)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const pageId = Object.keys(data.query.pages)[0];
+            if (pageId === "-1") return null;
+            let extract = data.query.pages[pageId].extract;
+            return extract ? extract.split('. ').slice(0, 2).join('. ') + "." : null;
+        } catch (e) { return null; }
+    }
+
+    static async getSynonyms(word) {
+        try {
+            const res = await fetch(`https://api.datamuse.com/words?ml=${word}&max=3`);
+            const data = await res.json();
+            return data.map(d => d.word);
+        } catch (e) { return []; }
+    }
+}
+
+// --- 2. Core Classes (Tokenizer, Vector, Generator) ---
+class Tokenizer {
+    static clean(text) { return text.toLowerCase().trim(); }
+    static tokenize(text) {
+        const raw = text.toLowerCase().match(/[\w']+|[+\-*/=<>?]|\d+/g) || [];
+        return raw.map(t => STATE.synonyms[t] || t);
+    }
+}
+
+class VectorEngine {
+    constructor() { this.vocabSize = 0; }
+    fit(documents) {
+        const docCount = documents.length;
+        const termDocCounts = {};
+        documents.forEach(tokens => {
+            new Set(tokens).forEach(t => {
+                if (!STATE.vocab[t]) STATE.vocab[t] = this.vocabSize++;
+                termDocCounts[t] = (termDocCounts[t] || 0) + 1;
             });
-
-            // B. Phrase Match (High Score)
-            if (userClean.includes(mem.cleanTrigger)) {
-                matchCount += 5.0; 
+        });
+        Object.keys(termDocCounts).forEach(term => STATE.idf[term] = Math.log(docCount / (1 + termDocCounts[term])));
+    }
+    vectorize(tokens) {
+        const vec = {};
+        let magnitude = 0;
+        const tf = {};
+        tokens.forEach(t => tf[t] = (tf[t] || 0) + 1);
+        Object.keys(tf).forEach(term => {
+            if (STATE.idf[term]) {
+                const score = (tf[term] / tokens.length) * STATE.idf[term];
+                vec[term] = score;
+                magnitude += score * score;
             }
-            
-            // C. CONTEXT BOOST (The "Smart" Part)
-            // If the memory has defined Context Tags (e.g., "fruit"), check if "fruit" is in history
-            if (mem.contextTags && mem.contextTags.length > 0) {
-                // Check if User's CURRENT input has context tags
-                const currentInputHasContext = mem.contextTags.some(tag => userKeywords.includes(tag));
-                
-                // Check if HISTORY has context tags (Studio Plan only)
-                const historyHasContext = plan === 'studio' 
-                    ? mem.contextTags.some(tag => state.contextHistory.includes(tag))
-                    : false;
+        });
+        magnitude = Math.sqrt(magnitude);
+        if (magnitude > 0) Object.keys(vec).forEach(t => vec[t] /= magnitude);
+        return vec;
+    }
+    static cosineSimilarity(vecA, vecB) {
+        let dot = 0;
+        Object.keys(vecA).forEach(term => { if (vecB[term]) dot += vecA[term] * vecB[term]; });
+        return dot;
+    }
+}
 
-                if (currentInputHasContext) {
-                    contextBoost += 5; // Immediate context override
-                } else if (historyHasContext) {
-                    contextBoost += 3; // Historical context resonance
-                }
-            }
-
-            let totalScore = matchCount + contextBoost;
-
-            if (totalScore > bestScore) {
-                bestScore = totalScore;
-                bestMatch = mem;
-                matchType = contextBoost > 0 ? "Context Boost" : "Direct Match";
+class Generator {
+    constructor() { this.nGram = 3; this.model = new Map(); }
+    train(dataPairs) {
+        this.model.clear();
+        dataPairs.forEach(pair => {
+            const sequence = ["user", ":", ...pair.qTokens, "\n", "ai", ":", ...pair.aTokens];
+            for(let i=0; i < sequence.length - 1; i++) {
+                const ctx = sequence.slice(Math.max(0, i - this.nGram + 1), i+1).join(" ");
+                const next = sequence[i+1];
+                if(!this.model.has(ctx)) this.model.set(ctx, {});
+                this.model.get(ctx)[next] = (this.model.get(ctx)[next] || 0) + 1;
             }
         });
     }
-
-    // -- STEP 3: DECIDE OUTPUT --
-    let currentContext = [];
-    const threshold = plan === 'regular' ? 999 : 0.5; 
-
-    if (bestMatch && bestScore > threshold) {
-        // MATCH FOUND
-        el.vizMatch.textContent = `"${bestMatch.trigger}"`;
-        
-        // Visual Feedback for Context
-        if (matchType === "Context Boost") {
-             el.vizScore.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-bolt"></i> ${bestScore.toFixed(1)} (Boosted)</span>`;
-        } else {
-             el.vizScore.textContent = `Score: ${bestScore.toFixed(1)}`;
+    predictNext(history, penalty = 1.2, topK = 5, temp = 1.0) {
+        const ctx = history.slice(-this.nGram).join(" ");
+        const dist = this.model.get(ctx);
+        if (!dist) return null;
+        const candidates = Object.keys(dist);
+        const scores = {};
+        let sum = 0;
+        const recentTokens = new Set(history.slice(-10)); 
+        candidates.forEach(token => {
+            let count = dist[token];
+            if (recentTokens.has(token)) count /= penalty;
+            scores[token] = Math.pow(count, 1/temp);
+        });
+        const sorted = Object.keys(scores).sort((a,b) => scores[b] - scores[a]);
+        const topCandidates = sorted.slice(0, topK);
+        topCandidates.forEach(t => sum += scores[t]);
+        let r = Math.random() * sum;
+        for(const t of topCandidates) {
+            r -= scores[t];
+            if(r <= 0) return t;
         }
-        
-        el.vizMatch.className = "text-xs text-emerald-400 mono-text truncate";
-
-        // Pro/Studio: Return the canned response immediately if score is high
-        if (bestScore >= 2 || plan === 'studio') {
-             await new Promise(r => setTimeout(r, 600));
-             aiBubble.textContent = bestMatch.response;
-             el.brainViz.style.height = "0px";
-             return;
-        }
-        
-        const answerTokens = tokenize(bestMatch.response);
-        currentContext = answerTokens.slice(0, Math.min(2, answerTokens.length));
-        responseWords = [...currentContext];
-
-    } else {
-        // NO MATCH -> Fallback to Generator
-        el.vizMatch.textContent = plan === 'regular' ? "Skipped (Regular)" : "No Resonance";
-        el.vizMatch.className = "text-xs text-stone-500 mono-text truncate";
-        el.vizScore.textContent = "Score: 0";
-
-        // Random Seed
-        const aiStarts = Object.keys(state.model).filter(k => !k.includes('.') && !k.includes('?'));
-        if (aiStarts.length > 0) {
-            const seed = aiStarts[Math.floor(Math.random() * aiStarts.length)];
-            currentContext = seed.split(" ");
-        } else {
-            aiBubble.textContent = "I don't have enough data on that context yet.";
-            setTimeout(() => { el.brainViz.style.height = "0px"; }, 1000);
-            return;
-        }
-    }
-
-    // -- STEP 4: N-GRAM GENERATION (Fill in the blanks) --
-    aiBubble.innerHTML = "";
-    if (responseWords.length > 0) {
-        aiBubble.textContent = responseWords.join(" ") + " ";
-    }
-
-    for (let i = 0; i < 25; i++) {
-        await new Promise(r => setTimeout(r, 30 + Math.random() * 40));
-        
-        let candidates = null;
-        let ctxStr = currentContext.join(" ").toLowerCase();
-        
-        if (state.model[ctxStr]) candidates = state.model[ctxStr];
-        else if (currentContext.length > 1) {
-            ctxStr = currentContext.slice(1).join(" ").toLowerCase();
-            if (state.model[ctxStr]) candidates = state.model[ctxStr];
-        }
-
-        if (!candidates) break;
-
-        const nextWord = selectWord(candidates);
-        
-        if (nextWord === "User" || nextWord === "User:" || nextWord === "AI" || nextWord === "AI:" || nextWord === "Context:") break;
-
-        responseWords.push(nextWord);
-        aiBubble.textContent = responseWords.join(" ");
-        
-        currentContext.push(nextWord);
-        if (currentContext.length >= state.ngram) currentContext.shift();
-        
-        el.chatContainer.scrollTop = el.chatContainer.scrollHeight;
-    }
-
-    if (responseWords.length === 0) aiBubble.textContent = "Processing error.";
-    setTimeout(() => { el.brainViz.style.height = "0px"; }, 1000);
-}
-
-function selectWord(candidates) {
-    const temp = parseFloat(el.tempSlider.value);
-    if (Math.random() > temp) {
-        const counts = {};
-        candidates.forEach(x => counts[x] = (counts[x] || 0) + 1);
-        return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-    } else {
-        return candidates[Math.floor(Math.random() * candidates.length)];
+        return topCandidates[0];
     }
 }
 
-// --- Helper: UI ---
-function addMessage(sender, html, isTyping = false) {
+// --- DOM & Logic ---
+const el = {
+    trainBtn: document.getElementById('train-btn'),
+    stopBtn: document.getElementById('stop-train-btn'),
+    trainingData: document.getElementById('training-data'),
+    sysPrompt: document.getElementById('system-prompt'),
+    epochs: document.getElementById('param-epochs'),
+    penalty: document.getElementById('param-penalty'),
+    overlay: document.getElementById('training-overlay'),
+    progressBar: document.getElementById('train-progress'),
+    trainLog: document.getElementById('train-log'),
+    chatArea: document.getElementById('chat-container'),
+    chatForm: document.getElementById('chat-form'),
+    userInput: document.getElementById('user-input'),
+    vizBar: document.getElementById('viz-bar'),
+    vizContainer: document.getElementById('token-viz-container'),
+    confScore: document.getElementById('confidence-score'),
+    tempSlider: document.getElementById('temperature'),
+    tempVal: document.getElementById('temp-val'),
+    copyBtn: document.getElementById('copy-btn'),
+    resetBtn: document.getElementById('reset-btn'),
+    stats: document.getElementById('dataset-stats'),
+    saveStatus: document.getElementById('save-status'),
+    welcome: document.getElementById('welcome-msg'),
+    importBtn: document.getElementById('import-btn'),
+    importOverlay: document.getElementById('import-overlay'),
+    importTopic: document.getElementById('import-topic'),
+    importSource: document.getElementById('import-source'),
+    processImport: document.getElementById('process-import'),
+    cancelImport: document.getElementById('cancel-import')
+};
+
+const engine = new VectorEngine();
+const generator = new Generator();
+let chart = null;
+
+const defaultData = `User: Hello\nAI: Hi there! How can I help?\n\nUser: Who are you?\nAI: I am MochaLLM v5.3.\n\nUser: Good morning\nAI: Good morning! Have a great day.`;
+
+function init() {
+    el.trainingData.value = localStorage.getItem(CONFIG.storageKey) || defaultData;
+    el.sysPrompt.value = localStorage.getItem(CONFIG.systemKey) || "You are a helpful assistant.";
+    updateStats();
+    initChart();
+}
+
+function updateStats() {
+    const pairs = el.trainingData.value.split(/User:/i).length - 1;
+    el.stats.innerText = `${pairs} Pairs`;
+}
+
+// --- Import Tool ---
+el.importBtn.onclick = () => { el.importOverlay.classList.remove('hidden'); el.importOverlay.classList.add('flex'); el.importTopic.focus(); };
+el.cancelImport.onclick = () => { el.importOverlay.classList.add('hidden'); el.importOverlay.classList.remove('flex'); };
+el.processImport.onclick = () => {
+    const topic = el.importTopic.value.trim();
+    const source = el.importSource.value.trim();
+    if(!topic || !source) return alert("Please fill both fields.");
+    const sentences = source.match(/[^.!?]+[.!?]+/g) || [source];
+    let newTrainingData = "";
+    for (let i = 0; i < sentences.length; i += 2) {
+        const chunk = sentences.slice(i, i + 2).join(" ").trim();
+        if(chunk.length > 10) newTrainingData += `\n\nUser: Tell me about ${topic} (${Math.floor(i/2) + 1})\nAI: ${chunk}`;
+    }
+    el.trainingData.value += newTrainingData;
+    updateStats();
+    localStorage.setItem(CONFIG.storageKey, el.trainingData.value);
+    el.importOverlay.classList.add('hidden'); el.importOverlay.classList.remove('flex');
+    alert(`Imported ${Math.ceil(sentences.length/2)} chunks.`);
+};
+
+// --- Training ---
+async function startTraining() {
+    const text = el.trainingData.value;
+    localStorage.setItem(CONFIG.storageKey, text);
+    const blocks = text.split(/User:/i).filter(b => b.trim());
+    const pairs = [];
+    const allQTokens = [];
+    blocks.forEach(b => {
+        const [q, a] = b.split(/AI:/i);
+        if(q && a) {
+            const qTokens = Tokenizer.tokenize(q);
+            const aTokens = Tokenizer.tokenize(a);
+            pairs.push({ qTokens, aTokens, rawA: a.trim() });
+            allQTokens.push(qTokens);
+        }
+    });
+    if(pairs.length < 1) return alert("Need data!");
+    STATE.isTraining = true;
+    el.overlay.classList.remove('hidden'); el.overlay.classList.add('flex');
+    log("Initializing...");
+    engine.vocabSize = 0; STATE.vocab = {}; STATE.idf = {};
+    engine.fit(allQTokens);
+    STATE.vectors = pairs.map(p => ({ vec: engine.vectorize(p.qTokens), response: p.rawA, tokens: p.aTokens }));
+    const epochs = parseInt(el.epochs.value);
+    let currentEpoch = 0;
+    async function loop() {
+        if(!STATE.isTraining) return;
+        currentEpoch++;
+        const progress = currentEpoch / epochs;
+        const loss = (1.5 * Math.exp(-progress * 4) + Math.random() * 0.1).toFixed(3);
+        updateChart(currentEpoch, loss);
+        el.progressBar.style.width = `${progress * 100}%`;
+        document.getElementById('epoch-counter').innerText = `${Math.round(progress*100)}%`;
+        if(currentEpoch < epochs) setTimeout(loop, 10);
+        else {
+            generator.train(pairs);
+            STATE.isModelReady = true;
+            el.overlay.classList.add('hidden'); el.overlay.classList.remove('flex');
+            el.userInput.disabled = false; el.userInput.placeholder = "Ask something..."; el.userInput.focus();
+            el.welcome.style.display = 'none';
+            addBubble("System", "Training Complete. Tools Connected.", "sys");
+        }
+    }
+    loop();
+}
+
+// --- Inference ---
+async function generate(text) {
+    el.vizContainer.innerHTML = ''; el.vizBar.style.height = 'auto';
+    el.confScore.innerText = "Scanning Tools...";
+
+    // Check specific tools first
+    const joke = await ToolBelt.getJoke(text);
+    if(joke) { addViz("TOOL", "JokeAPI", "tool"); return typeWriter(joke); }
+
+    const def = await ToolBelt.checkDefinition(text);
+    if(def) { addViz("TOOL", "Dictionary API", "tool"); return typeWriter(def); }
+
+    const country = await ToolBelt.checkCountry(text);
+    if(country) { addViz("TOOL", "Country Data", "tool"); return typeWriter(country); }
+
+    const cur = await ToolBelt.checkCurrency(text);
+    if(cur) { addViz("TOOL", "ExchangeRate API", "tool"); return typeWriter(cur); }
+
+    const math = await ToolBelt.checkMath(text);
+    if(math) { addViz("TOOL", "Math.js", "tool"); return typeWriter(math); }
+
+    const time = await ToolBelt.checkTime(text);
+    if(time) { addViz("TOOL", "WorldTime", "tool"); return typeWriter(time); }
+
+    // Fallback to Vector Search + Wikipedia
+    let inputTokens = Tokenizer.tokenize(text);
+    let inputVec = engine.vectorize(inputTokens);
+    let bestScore = -1, bestMatch = null;
+    
+    const unknownTokens = inputTokens.filter(t => !STATE.vocab.hasOwnProperty(t));
+    const hasUnknown = unknownTokens.length > 0;
+    if(hasUnknown) addViz("INFO", "Unknown Terms", "gen");
+
+    STATE.vectors.forEach(mem => {
+        const score = VectorEngine.cosineSimilarity(inputVec, mem.vec);
+        if(score > bestScore) { bestScore = score; bestMatch = mem; }
+    });
+
+    el.confScore.innerText = `Confidence: ${(bestScore*100).toFixed(1)}%`;
+
+    if (bestScore > 0.65 && !hasUnknown) {
+        addViz("RAG", "Local Memory", "vec");
+        typeWriter(bestMatch.response);
+    } else {
+        addViz("WARN", "Low Confidence", "fail");
+        el.confScore.innerText = "Checking Wiki/Synonyms...";
+        
+        // Wiki
+        const wiki = await ToolBelt.getWikipedia(text);
+        if(wiki) { addViz("TOOL", "Wikipedia", "tool"); return typeWriter(wiki); }
+
+        // Synonyms
+        const mainWord = inputTokens.find(t => t.length > 3);
+        if(mainWord) {
+            const syns = await ToolBelt.getSynonyms(mainWord);
+            if(syns.length > 0) {
+                addViz("TOOL", `Synonyms: ${syns[0]}`, "tool");
+                inputTokens = [...inputTokens, ...syns];
+                inputVec = engine.vectorize(inputTokens);
+                bestScore = -1;
+                STATE.vectors.forEach(mem => {
+                    const score = VectorEngine.cosineSimilarity(inputVec, mem.vec);
+                    if(score > bestScore) { bestScore = score; bestMatch = mem; }
+                });
+                if(bestScore > 0.5) return typeWriter(bestMatch.response);
+            }
+        }
+
+        if(bestScore > 0.3) {
+            addViz("GEN", "N-Gram Guess", "gen");
+            runGenerator(inputTokens);
+        } else {
+            typeWriter("I don't have enough data, and my external tools couldn't find an answer.");
+        }
+    }
+}
+
+async function runGenerator(tokens) {
+    let hist = ["user", ":", ...tokens, "\n", "ai", ":"];
+    let count = 0, txt = "";
+    while(count < 50) {
+        await new Promise(r => setTimeout(r, 30));
+        const next = generator.predictNext(hist, parseFloat(el.penalty.value), 5, parseFloat(el.tempSlider.value));
+        if(!next || next === "user" || next === "ai") break;
+        txt += (count===0?"":" ") + next; hist.push(next); count++;
+        document.querySelector('.bubble-ai:last-child .content').innerText = txt;
+    }
+}
+
+async function typeWriter(text) {
+    const bubble = document.querySelector('.bubble-ai:last-child .content');
+    const words = text.split(" ");
+    let cur = "";
+    for(let w of words) { cur += w + " "; bubble.innerText = cur; await new Promise(r => setTimeout(r, 30)); }
+}
+
+// Helpers
+function addBubble(name, text, type) {
     const div = document.createElement('div');
-    const isUser = sender === "User";
-    div.className = `bubble ${isUser ? 'bubble-user' : 'bubble-ai'}`;
-    
-    if (sender === "System") {
-        div.setAttribute('data-role', 'system');
-        div.innerHTML = `<div class="font-semibold text-[10px] text-amber-500 mb-1">System</div>${html}`;
-    } else if (isUser) {
-        div.textContent = html;
-    } else {
-        div.innerHTML = `<div class="font-semibold text-[10px] text-stone-500 mb-1">MochaLLM</div><span class="msg-content block">${html}</span>`;
+    if(type==='sys') { div.className="bubble bubble-system"; div.innerText=text; }
+    else {
+        div.className=`bubble ${type==='user'?'bubble-user':'bubble-ai'}`;
+        div.innerHTML = type==='ai' ? `<div class="text-[9px] font-bold opacity-50 mb-1">${name}</div><div class="content">${text}</div>` : text;
     }
-    
-    el.chatContainer.appendChild(div);
-    el.chatContainer.scrollTop = el.chatContainer.scrollHeight;
-    
-    return isUser ? div : div.querySelector('.msg-content');
+    el.chatArea.appendChild(div); el.chatArea.scrollTop = el.chatArea.scrollHeight;
 }
+function addViz(label, desc, type) {
+    const s = document.createElement('span'); s.className = `badge ${type==='vec'?'badge-vec':type==='fail'?'badge-fail':type==='tool'?'badge-tool':'badge-gen'}`;
+    s.innerHTML = `${label} <span class="font-normal opacity-70 ml-1">${desc}</span>`; el.vizContainer.appendChild(s);
+}
+function log(msg) { const d=document.createElement('div'); d.innerText=msg; el.trainLog.prepend(d); }
+function initChart() {
+    const ctx = document.getElementById('lossChart').getContext('2d');
+    chart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ data: [], borderColor: '#3b82f6', borderWidth: 2, tension: 0.4, pointRadius: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: false }, scales: { x: { display: false }, y: { display: false } }, animation: false } });
+}
+function updateChart(l, v) { chart.data.labels.push(l); chart.data.datasets[0].data.push(v); chart.update(); }
 
-// --- Copy Chat ---
-el.copyChatBtn.addEventListener('click', () => {
-    const bubbles = Array.from(document.querySelectorAll('.bubble'))
-        .filter(b => !b.dataset.role)
-        .map(b => {
-            const isUser = b.classList.contains('bubble-user');
-            const text = isUser ? b.innerText : b.querySelector('.msg-content').innerText;
-            return `${isUser ? 'User' : 'AI'}: ${text}`;
-        }).join("\n");
-        
-    if(!bubbles) return alert("No chat history.");
+// Events
+el.trainBtn.onclick = startTraining;
+el.stopBtn.onclick = () => { STATE.isTraining = false; el.overlay.classList.add('hidden'); el.overlay.classList.remove('flex'); };
+el.chatForm.onsubmit = (e) => { e.preventDefault(); const t = el.userInput.value.trim(); if(!t || !STATE.isModelReady) return; addBubble("User", t, "user"); addBubble("Mocha", "...", "ai"); el.userInput.value=''; generate(t); };
+el.trainingData.oninput = () => { updateStats(); clearTimeout(window.saveTimer); window.saveTimer = setTimeout(() => { localStorage.setItem(CONFIG.storageKey, el.trainingData.value); }, 1000); };
+el.copyBtn.onclick = () => navigator.clipboard.writeText(Array.from(document.querySelectorAll('.bubble')).map(b => b.innerText).join("\n\n")).then(() => alert("Copied!"));
+el.resetBtn.onclick = () => { if(confirm("Reset?")) { localStorage.clear(); location.reload(); } };
+el.tempSlider.oninput = (e) => document.getElementById('temp-val').innerText = e.target.value;
 
-    navigator.clipboard.writeText(bubbles).then(() => {
-        const original = el.copyChatBtn.innerHTML;
-        el.copyChatBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
-        setTimeout(() => el.copyChatBtn.innerHTML = original, 1000);
-    });
-});
-
-// --- Backup ---
-el.exportBtn.addEventListener('click', () => {
-    const data = el.input.value;
-    const history = Array.from(document.querySelectorAll('.bubble'))
-        .filter(b => !b.dataset.role)
-        .map(b => {
-            const isUser = b.classList.contains('bubble-user');
-            const text = isUser ? b.innerText : b.querySelector('.msg-content').innerText;
-            return `${isUser ? 'User' : 'AI'}: ${text}`;
-        }).join("\n");
-        
-    const full = data + "\n\n" + history;
-    navigator.clipboard.writeText(full).then(() => {
-        const original = el.exportBtn.innerHTML;
-        el.exportBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
-        setTimeout(() => el.exportBtn.innerHTML = original, 1000);
-    });
-});
-
-// Init
-window.addEventListener('DOMContentLoaded', loadData);
+init();
 </script>
 </body>
 </html>
